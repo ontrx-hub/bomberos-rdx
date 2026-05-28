@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Cuerpo de Bomberos RD — Sistema Nacional</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://www.gstatic.com https://*.googleapis.com https://*.firebaseio.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src https://*.googleapis.com https://*.firebaseio.com https://*.firestore.googleapis.com https://*.openstreetmap.org;">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --red:#C8102E;--red-deep:#7A0018;--red-glow:#FF1A3C;
+  --gold:#F5A623;--black:#0D0D0D;--panel-bg:rgba(13,13,13,0.97);
+  --text:#F0E8E0;--text-dim:#A09090;--border:#3A1A1A;
+  --sub-color:#1565C0;
+}
+html{scroll-behavior:smooth;}
+body{font-family:'Barlow Condensed',sans-serif;background:var(--black);color:var(--text);overflow-x:hidden;}
+
+/* LOADING */
+#ls{position:fixed;inset:0;z-index:9999;background:var(--red-deep);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2rem;transition:opacity 0.6s;}
+#ls.hidden{opacity:0;pointer-events:none;}
+.ls-bg{position:absolute;inset:0;}
+.ls-bg::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,#E8001A 0%,transparent 70%);}
+.ls-bg::after{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:60px 60px;}
+.ls-inner{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:1.2rem;animation:fadeUp 0.8s ease;}
+.ls-emblem{width:90px;height:90px;border-radius:50%;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;position:relative;}
+.ls-emblem::before{content:'';position:absolute;inset:-6px;border-radius:50%;border:1px solid rgba(245,166,35,0.3);animation:spin 20s linear infinite;}
+.ls-code{font-family:'JetBrains Mono',monospace;font-size:2rem;font-weight:700;color:#fff;animation:codePulse 2s ease-in-out infinite;}
+.ls-label{font-family:'JetBrains Mono',monospace;font-size:0.7rem;letter-spacing:0.25em;text-transform:uppercase;color:var(--gold);}
+.ls-title{font-family:'Bebas Neue',sans-serif;font-size:3.5rem;letter-spacing:0.05em;color:#fff;line-height:0.95;}
+.ls-title span{display:block;font-size:1.8rem;letter-spacing:0.14em;color:rgba(255,255,255,0.3);}
+.ls-divider{width:60px;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);}
+.ls-status{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:100px;padding:6px 18px;}
+.ls-dot{width:7px;height:7px;border-radius:50%;background:var(--gold);animation:blink 1.2s ease-in-out infinite;}
+.ls-stext{font-family:'JetBrains Mono',monospace;font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.65);}
+.ls-bar{width:220px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;}
+.ls-fill{height:100%;width:0;background:linear-gradient(90deg,var(--gold),#FFD080);animation:lsFill 2s ease forwards;}
+@keyframes lsFill{0%{width:0}100%{width:100%}}
+.ls-credits{font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.2);margin-top:0.5rem;}
+.ls-credits span{color:rgba(255,255,255,0.38);}
+
+/* GLOBALS */
+.bg-base{position:fixed;inset:0;z-index:-3;background:linear-gradient(160deg,#0a0000 0%,#120003 40%,#0a0000 100%);}
+.bg-stripes{position:fixed;inset:0;z-index:-2;pointer-events:none;background-image:repeating-linear-gradient(-45deg,transparent,transparent 40px,rgba(255,255,255,0.012) 40px,rgba(255,255,255,0.012) 41px);}
+.orb{position:fixed;border-radius:50%;pointer-events:none;z-index:-1;filter:blur(80px);}
+.orb-1{width:500px;height:500px;top:-100px;left:-150px;background:rgba(200,16,46,0.22);animation:drift1 14s ease-in-out infinite;}
+.orb-2{width:400px;height:400px;bottom:-80px;right:-100px;background:rgba(160,0,32,0.18);animation:drift2 18s ease-in-out infinite;}
+@keyframes drift1{0%,100%{transform:translate(0,0)}50%{transform:translate(30px,40px)}}
+@keyframes drift2{0%,100%{transform:translate(0,0)}50%{transform:translate(-40px,-30px)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+@keyframes codePulse{0%,100%{text-shadow:0 0 20px rgba(255,255,255,0.3)}50%{text-shadow:0 0 40px rgba(255,255,255,0.7)}}
+
+/* NAV */
+#nav{position:sticky;top:0;z-index:1000;background:linear-gradient(135deg,var(--red-deep) 0%,var(--red) 60%,#A00020 100%);padding:0 clamp(1rem,3vw,2rem);height:64px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 3px 24px rgba(200,16,46,0.5);}
+#nav::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent,transparent 40px,rgba(255,255,255,0.025) 40px,rgba(255,255,255,0.025) 41px);pointer-events:none;}
+.nav-left{display:flex;align-items:center;gap:12px;position:relative;z-index:1;}
+.nav-emblem{width:42px;height:42px;background:var(--black);border-radius:50%;border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:1.3rem;box-shadow:0 0 14px rgba(245,166,35,0.35);flex-shrink:0;cursor:pointer;}
+.nav-brand{display:flex;flex-direction:column;line-height:1.1;}
+.nav-brand span:first-child{font-family:'Bebas Neue',sans-serif;font-size:clamp(1rem,2.8vw,1.45rem);letter-spacing:0.07em;color:#fff;}
+.nav-brand span:last-child{font-size:0.62rem;letter-spacing:0.15em;color:var(--gold);text-transform:uppercase;opacity:0.9;}
+.nav-links{display:flex;align-items:center;gap:clamp(4px,1.5vw,20px);position:relative;z-index:1;}
+.nav-link{background:none;border:none;color:rgba(255,255,255,0.75);font-family:'Barlow Condensed',sans-serif;font-size:clamp(0.75rem,1.5vw,0.95rem);font-weight:600;letter-spacing:0.07em;text-transform:uppercase;cursor:pointer;padding:6px 10px;border-radius:4px;transition:all 0.2s;text-decoration:none;}
+.nav-link:hover{color:#fff;background:rgba(255,255,255,0.1);}
+.hamburger{display:none;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;position:relative;z-index:1;}
+.mobile-menu{display:none;flex-direction:column;background:#1a0005;border-bottom:1px solid var(--border);}
+.mobile-menu.open{display:flex;}
+.mobile-menu a{padding:13px 24px;font-family:'Barlow Condensed',sans-serif;font-size:1rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim);text-decoration:none;}
+.mobile-menu a:hover{color:var(--gold);}
+
+/* HERO */
+#hero{min-height:calc(100vh - 64px);display:flex;align-items:center;padding:60px clamp(1.5rem,5vw,5rem);position:relative;overflow:hidden;}
+.hero-grid{position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,0.028) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.028) 1px,transparent 1px);background-size:60px 60px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 30%,transparent 100%);}
+.hero-inner{position:relative;z-index:2;max-width:1100px;margin:0 auto;width:100%;}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:8px;background:rgba(245,166,35,0.1);border:1px solid rgba(245,166,35,0.3);border-radius:100px;padding:5px 16px;margin-bottom:1.2rem;}
+.hero-edot{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:blink 1.5s ease-in-out infinite;}
+.hero-eyebrow span{font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);}
+.hero h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(3.5rem,8vw,6.5rem);letter-spacing:0.04em;line-height:0.92;color:#fff;margin-bottom:0.4rem;}
+.hero h1 em{font-style:normal;color:var(--red);display:block;}
+.hero-divider{width:60px;height:2px;background:linear-gradient(90deg,var(--gold),transparent);margin:1.5rem 0;}
+.hero-sub{font-size:clamp(1rem,2vw,1.2rem);font-weight:300;line-height:1.65;color:var(--text-dim);max-width:560px;margin-bottom:2.5rem;}
+.btn-primary{background:var(--red);color:#fff;padding:12px 28px;border-radius:4px;font-family:'Barlow Condensed',sans-serif;font-size:1rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;border:none;cursor:pointer;transition:background 0.2s,transform 0.15s;display:inline-flex;align-items:center;gap:8px;}
+.btn-primary:hover{background:var(--red-deep);transform:translateY(-1px);}
+
+/* STATS */
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:2.5rem;}
+.stat-box{background:rgba(13,13,13,0.8);padding:22px 20px;text-align:center;}
+.stat-val{font-family:'Bebas Neue',sans-serif;font-size:2.8rem;letter-spacing:0.04em;color:#fff;line-height:1;}
+.stat-val.loading{color:var(--text-dim);font-size:2rem;}
+.stat-lbl{font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-dim);margin-top:4px;}
+
+/* MAP SECTION */
+#mapa{border-top:4px solid var(--black);}
+.map-topbar{background:linear-gradient(135deg,var(--red-deep) 0%,var(--red) 60%,#A00020 100%);padding:0 clamp(1rem,3vw,2rem);height:62px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 3px 20px rgba(200,16,46,0.6);position:relative;z-index:600;}
+.map-topbar::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent,transparent 40px,rgba(255,255,255,0.03) 40px,rgba(255,255,255,0.03) 41px);pointer-events:none;}
+.map-topbar-left{display:flex;align-items:center;gap:12px;z-index:1;position:relative;}
+.map-emblem{width:40px;height:40px;background:var(--black);border-radius:50%;border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:1.3rem;box-shadow:0 0 12px rgba(245,166,35,0.4);flex-shrink:0;}
+.map-header-title{display:flex;flex-direction:column;line-height:1;}
+.map-header-title span:first-child{font-family:'Bebas Neue',sans-serif;font-size:clamp(1rem,3vw,1.45rem);letter-spacing:0.08em;color:#fff;}
+.map-header-title span:last-child{font-size:0.6rem;letter-spacing:0.15em;color:var(--gold);text-transform:uppercase;opacity:0.9;}
+.map-station-count{font-family:'JetBrains Mono',monospace;font-size:0.7rem;letter-spacing:0.1em;color:rgba(255,255,255,0.5);z-index:1;position:relative;}
+.map-station-count span{color:var(--gold);font-weight:700;}
+
+.map-wrapper{position:relative;height:calc(100vh - 64px - 62px);display:flex;border-left:8px solid var(--black);border-right:8px solid var(--black);}
+#map{flex:1;z-index:1;}
+.leaflet-control-attribution{font-size:9px;background:rgba(0,0,0,0.6)!important;color:#aaa!important;}
+.leaflet-control-attribution a{color:#ccc!important;}
+
+/* PANEL */
+#panel{position:absolute;top:0;right:0;height:100%;width:340px;background:var(--panel-bg);border-left:1px solid var(--border);display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.35s cubic-bezier(0.4,0,0.2,1);z-index:500;backdrop-filter:blur(12px);}
+#panel.open{transform:translateX(0);}
+.panel-close{position:absolute;top:10px;right:10px;width:36px;height:36px;background:var(--red);border:none;border-radius:50%;color:#fff;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,0.5);transition:background 0.2s,transform 0.15s;}
+.panel-close:hover{background:var(--red-deep);transform:scale(1.1);}
+@media(min-width:641px){.panel-close{right:auto;left:-44px;top:14px;border-radius:6px 0 0 6px;width:38px;height:38px;}}
+.panel-photo{position:relative;height:190px;overflow:hidden;flex-shrink:0;}
+.panel-photo img{width:100%;height:100%;object-fit:cover;display:block;}
+.panel-photo::after{content:'';position:absolute;inset:0;border:5px solid var(--red);pointer-events:none;box-shadow:inset 0 0 20px rgba(200,16,46,0.5);}
+.panel-photo.sub::after{border-color:var(--sub-color);}
+.photo-placeholder{width:100%;height:100%;background:linear-gradient(135deg,#1a0000,#2a0808);display:flex;align-items:center;justify-content:center;font-size:4rem;color:var(--red);opacity:0.6;}
+.photo-placeholder.sub{background:linear-gradient(135deg,#000d1a,#001a2a);color:var(--sub-color);}
+.panel-body{flex:1;overflow-y:auto;padding:1.2rem;}
+.panel-body::-webkit-scrollbar{width:4px;}
+.panel-body::-webkit-scrollbar-thumb{background:var(--red);border-radius:2px;}
+.station-name{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.05em;line-height:1;color:#fff;margin-bottom:4px;}
+.station-badge{display:inline-block;background:var(--red);color:#fff;font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:2px 8px;border-radius:2px;margin-bottom:1rem;}
+.station-badge.sub{background:var(--sub-color);}
+.info-grid{display:grid;gap:0.7rem;margin-bottom:1rem;}
+.info-row{display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:start;}
+.info-icon{width:28px;height:28px;background:rgba(200,16,46,0.15);border:1px solid rgba(200,16,46,0.3);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.85rem;flex-shrink:0;margin-top:2px;}
+.info-content label{display:block;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--text-dim);margin-bottom:1px;}
+.info-content span{font-size:0.875rem;font-weight:600;color:var(--text);}
+.divider-line{height:1px;background:var(--border);margin:0.8rem 0;}
+.units-title{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:0.08em;color:var(--gold);margin-bottom:0.6rem;}
+.units-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:0.5rem;}
+.unit-card{background:rgba(200,16,46,0.08);border:1px solid rgba(200,16,46,0.2);border-radius:4px;padding:8px 10px;display:flex;align-items:center;gap:8px;}
+.unit-icon{font-size:1.1rem;}
+.unit-info{font-size:0.75rem;line-height:1.3;}
+.unit-info strong{display:block;color:#fff;font-weight:700;}
+.unit-info span{color:var(--text-dim);}
+
+/* LEGEND */
+#legend{position:absolute;bottom:24px;left:16px;z-index:400;background:var(--panel-bg);border:1px solid var(--border);border-radius:6px;padding:12px 14px;backdrop-filter:blur(10px);min-width:180px;}
+#legend h4{font-family:'Bebas Neue',sans-serif;font-size:0.85rem;letter-spacing:0.1em;color:var(--gold);margin-bottom:8px;}
+.legend-item{display:flex;align-items:center;gap:8px;font-size:0.75rem;color:var(--text-dim);margin-bottom:5px;}
+.legend-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;}
+
+/* MARKERS */
+.fire-marker{width:36px;height:36px;background:var(--red);border:2.5px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(200,16,46,0.7);cursor:pointer;}
+.fire-marker.selected{box-shadow:0 0 0 3px rgba(200,16,46,0.5),0 3px 14px rgba(200,16,46,0.9);}
+.fire-marker .mi{transform:rotate(45deg);font-size:1rem;margin-top:-2px;}
+.sub-marker{width:32px;height:32px;background:var(--sub-color);border:2.5px solid #fff;border-radius:4px;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(21,101,192,0.7);cursor:pointer;}
+.sub-marker.selected{box-shadow:0 0 0 3px rgba(21,101,192,0.5),0 3px 14px rgba(21,101,192,0.9);}
+.sub-marker .mi{font-size:1rem;}
+.cistern-marker{width:28px;height:28px;background:#0097A7;border:2.5px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,151,167,0.7);font-size:0.85rem;cursor:pointer;}
+
+/* FOOTER */
+footer{background:var(--black);border-top:1px solid var(--border);padding:40px clamp(1.5rem,5vw,5rem) 24px;}
+.footer-inner{max-width:1100px;margin:0 auto;}
+.footer-top{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:40px;margin-bottom:32px;}
+.footer-brand{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:0.08em;color:#fff;display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.footer-emblem{width:28px;height:28px;background:var(--red);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;}
+.footer-desc{font-size:0.82rem;color:var(--text-dim);line-height:1.6;max-width:240px;}
+.footer-col-title{font-family:'JetBrains Mono',monospace;font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-dim);margin-bottom:14px;opacity:0.6;}
+.footer-links{display:flex;flex-direction:column;gap:8px;}
+.footer-links a{font-size:0.88rem;color:var(--text-dim);text-decoration:none;transition:color 0.2s;}
+.footer-links a:hover{color:var(--gold);}
+.footer-bottom{padding-top:20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+.footer-copy{font-size:0.75rem;color:rgba(255,255,255,0.25);letter-spacing:0.05em;}
+.footer-badge{background:rgba(200,16,46,0.15);border:1px solid rgba(200,16,46,0.3);border-radius:20px;padding:3px 12px;font-family:'JetBrains Mono',monospace;font-size:0.6rem;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.4);}
+.footer-credits{font-size:0.72rem;color:rgba(255,255,255,0.22);letter-spacing:0.06em;}
+.footer-credits span{color:rgba(255,255,255,0.38);}
+
+/* REVEAL */
+.reveal{opacity:0;transform:translateY(24px);transition:opacity 0.55s ease,transform 0.55s ease;}
+.reveal.visible{opacity:1;transform:translateY(0);}
+
+/* RESPONSIVE */
+@media(max-width:640px){
+  #nav .nav-links{display:none;}
+  .hamburger{display:block;}
+  .stats-bar{grid-template-columns:repeat(2,1fr);}
+  #panel{width:100%;border-left:none;border-top:1px solid var(--border);}
+  #legend{bottom:12px;left:10px;padding:8px 10px;}
+  .footer-top{grid-template-columns:1fr;}
+  .footer-bottom{flex-direction:column;text-align:center;}
+  .map-wrapper{border-left:4px solid var(--black);border-right:4px solid var(--black);}
+}
+@media(max-width:900px){
+  .footer-top{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="bg-base"></div>
+<div class="bg-stripes"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<!-- LOADING -->
+<div id="ls">
+  <div class="ls-bg"></div>
+  <div class="ls-inner">
+    <div class="ls-emblem"><span class="ls-code">🔥</span></div>
+    <p class="ls-label">Sistema Nacional · República Dominicana</p>
+    <h1 class="ls-title">BOMBEROS RD<span>REP. DOM.</span></h1>
+    <div class="ls-divider"></div>
+    <div class="ls-status"><div class="ls-dot"></div><span class="ls-stext">Cargando sistema...</span></div>
+    <div class="ls-bar"><div class="ls-fill"></div></div>
+    <p class="ls-credits">Creado por Bomberos, para Bomberos &nbsp;·&nbsp; <span>Ontrx Group®</span></p>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav id="nav">
+  <div class="nav-left">
+    <div class="nav-emblem" onclick="window.scrollTo({top:0,behavior:'smooth'})">🔥</div>
+    <div class="nav-brand">
+      <span>Bomberos RD</span>
+      <span>Sistema Nacional · Fase 1</span>
+    </div>
+  </div>
+  <div class="nav-links">
+    <a href="#hero" class="nav-link">Inicio</a>
+    <a href="#mapa" class="nav-link">Mapa nacional</a>
+    <a href="admin/" class="nav-link" style="border:1px solid rgba(245,166,35,0.4);color:var(--gold);">⚙ Panel Admin</a>
+  </div>
+  <button class="hamburger" onclick="document.getElementById('mmenu').classList.toggle('open')" aria-label="Menú">☰</button>
+</nav>
+<div class="mobile-menu" id="mmenu">
+  <a href="#hero" onclick="document.getElementById('mmenu').classList.remove('open')">Inicio</a>
+  <a href="#mapa" onclick="document.getElementById('mmenu').classList.remove('open')">Mapa nacional</a>
+  <a href="admin/" style="color:var(--gold)">⚙ Panel Admin</a>
+</div>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-inner">
+    <div class="hero-eyebrow"><div class="hero-edot"></div><span>Sistema Nacional · Fase 1 activa</span></div>
+    <h1>SISTEMA<em>NACIONAL</em>BOMBEROS</h1>
+    <div class="hero-divider"></div>
+    <p class="hero-sub">Plataforma institucional del Cuerpo de Bomberos de la República Dominicana. Mapa de estaciones nacionales y cobertura en tiempo real.</p>
+    <a href="#mapa" class="btn-primary">🗺 Ver mapa nacional</a>
+
+    <!-- STATS desde Firestore en tiempo real -->
+    <div class="stats-bar reveal">
+      <div class="stat-box">
+        <div class="stat-val" id="st-estaciones">—</div>
+        <div class="stat-lbl">Estaciones</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="st-subestaciones">—</div>
+        <div class="stat-lbl">Sub-Estaciones</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="st-personal">—</div>
+        <div class="stat-lbl">Personal activo</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="st-provincias">—</div>
+        <div class="stat-lbl">Provincias</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MAPA -->
+<div id="mapa">
+  <div class="map-topbar">
+    <div class="map-topbar-left">
+      <div class="map-emblem">🔥</div>
+      <div class="map-header-title">
+        <span>Cuerpo de Bomberos RD</span>
+        <span>Sistema Nacional de Estaciones &amp; Cobertura</span>
+      </div>
+    </div>
+    <div class="map-station-count">Estaciones en el mapa: <span id="map-count">0</span></div>
+  </div>
+  <div class="map-wrapper">
+    <div id="map"></div>
+    <div id="panel">
+      <button class="panel-close" onclick="closePanel()">✕</button>
+      <div class="panel-photo" id="panel-photo">
+        <div class="photo-placeholder">🚒</div>
+      </div>
+      <div class="panel-body">
+        <div id="panel-name" class="station-name">—</div>
+        <div id="panel-badge" class="station-badge">—</div>
+        <div class="info-grid" id="panel-info"></div>
+        <div class="divider-line"></div>
+        <div class="units-title">Unidades de Combate</div>
+        <div class="units-grid" id="panel-units"></div>
+      </div>
+    </div>
+    <div id="legend">
+      <h4>Leyenda</h4>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Estación Principal</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--sub-color);border-radius:2px"></div>Sub-Estación</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#0097A7"></div>Cisterna Voluntaria</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(200,16,46,0.2);border:2px solid var(--red);border-radius:2px;width:18px;height:12px;flex-shrink:0"></div>Zona de Cobertura</div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div>
+        <div class="footer-brand"><div class="footer-emblem">🔥</div> BomberoRD</div>
+        <div class="footer-desc">Sistema Nacional de Gestión del Cuerpo de Bomberos de la República Dominicana. Fase 1 en desarrollo activo.</div>
+      </div>
+      <div>
+        <div class="footer-col-title">Navegación</div>
+        <div class="footer-links">
+          <a href="#hero">Inicio</a>
+          <a href="#mapa">Mapa nacional</a>
+          <a href="admin/">Panel Administrador</a>
+        </div>
+      </div>
+      <div>
+        <div class="footer-col-title">Sistema</div>
+        <div class="footer-links">
+          <a href="#">Documentación</a>
+          <a href="#">Soporte técnico</a>
+          <a href="#">Emergencias: 911</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span class="footer-copy">© 2026 Cuerpo de Bomberos RD · Sistema Nacional de Gestión</span>
+      <span class="footer-badge">FASE 1 ACTIVA</span>
+      <span class="footer-credits">Desarrollado por <span>Ontrx Group®</span> · República Dominicana 🇩🇴</span>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+// ══════════════════════════════════════
+// FIREBASE CONFIG
+// ══════════════════════════════════════
+firebase.initializeApp({
+  apiKey:"AIzaSyBzu09OkMcjZzpJ16ePYpRr0Q02A0n6-zU",
+  authDomain:"bomberos-rdx.firebaseapp.com",
+  projectId:"bomberos-rdx",
+  storageBucket:"bomberos-rdx.firebasestorage.app",
+  messagingSenderId:"272246782474",
+  appId:"1:272246782474:web:a678a9219575b53bc1fdf3"
+});
+const db = firebase.firestore();
+
+// ══════════════════════════════════════
+// MAPA
+// ══════════════════════════════════════
+const map = L.map('map',{center:[18.9,-70.1],zoom:8});
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',maxZoom:19
+}).addTo(map);
+
+let activeStation=null, activeZone=null;
+const markerMap={};
+
+function fireIcon(sel=false){
+  return L.divIcon({className:'',html:`<div class="fire-marker${sel?' selected':''}"><div class="mi">🚒</div></div>`,iconSize:[36,36],iconAnchor:[18,36]});
+}
+function subIcon(sel=false){
+  return L.divIcon({className:'',html:`<div class="sub-marker${sel?' selected':''}"><div class="mi">🏠</div></div>`,iconSize:[32,32],iconAnchor:[16,16]});
+}
+function cisternIcon(){
+  return L.divIcon({className:'',html:`<div class="cistern-marker">💧</div>`,iconSize:[28,28],iconAnchor:[14,14]});
+}
+
+function sanitize(str){
+  if(typeof str!=='string') return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').trim().slice(0,500);
+}
+
+// ══════════════════════════════════════
+// PANEL
+// ══════════════════════════════════════
+function selectStation(s){
+  // Deselect anterior
+  if(activeStation && markerMap[activeStation.id]){
+    const prev=allStations.find(x=>x.id===activeStation.id);
+    if(prev) markerMap[activeStation.id].setIcon(prev.type==='substation'?subIcon():fireIcon());
+  }
+  if(activeZone){map.removeLayer(activeZone);activeZone=null;}
+
+  activeStation=s;
+  markerMap[s.id]?.setIcon(s.type==='substation'?subIcon(true):fireIcon(true));
+
+  // Zona de cobertura
+  const covLL=(s.coverage||[]).map(p=>Array.isArray(p)?p:[p.la,p.ln]);
+  if(covLL.length>2){
+    const col=s.type==='substation'?'#1565C0':'#C8102E';
+    activeZone=L.polygon(covLL,{color:col,fillColor:col,fillOpacity:0.15,weight:2,dashArray:'6,4'}).addTo(map);
+  }
+  map.flyTo([s.lat,s.lng],13,{duration:0.8});
+  renderPanel(s);
+  document.getElementById('panel').classList.add('open');
+}
+
+function renderPanel(s){
+  const safe=k=>sanitize(String(s[k]||'—'));
+  const isSub=s.type==='substation';
+  document.getElementById('panel-name').textContent=s.name||'—';
+  const badge=document.getElementById('panel-badge');
+  badge.textContent=s.number||'—';
+  badge.className='station-badge'+(isSub?' sub':'');
+
+  // Foto
+  const ph=document.getElementById('panel-photo');
+  ph.className='panel-photo'+(isSub?' sub':'');
+  if(s.photoUrl){
+    ph.innerHTML=`<img src="${s.photoUrl}" alt="${sanitize(s.name)}" onerror="this.parentElement.innerHTML='<div class=\\'photo-placeholder${isSub?' sub':''}\\'>${isSub?'🏠':'🚒'}</div>'"/>`;
+  }else{
+    ph.innerHTML=`<div class="photo-placeholder${isSub?' sub':''}">${isSub?'🏠':'🚒'}</div>`;
+  }
+
+  // Info
+  document.getElementById('panel-info').innerHTML=`
+    <div class="info-row"><div class="info-icon">📍</div><div class="info-content"><label>Dirección</label><span>${safe('address')}</span></div></div>
+    <div class="info-row"><div class="info-icon">👨‍✈️</div><div class="info-content"><label>Intendente / Jefe</label><span>${safe('chief')}</span></div></div>
+    <div class="info-row"><div class="info-icon">📞</div><div class="info-content"><label>Contacto</label><span>${safe('phone')}</span></div></div>
+    <div class="info-row"><div class="info-icon">👥</div><div class="info-content"><label>Personal</label><span>${s.staffFixed||0} fijos · ${s.staffVolunteer||0} voluntarios</span></div></div>
+    <div class="info-row"><div class="info-icon">${isSub?'🏠':'🚒'}</div><div class="info-content"><label>Tipo</label><span>${isSub?'Sub-Estación':'Estación Principal'}</span></div></div>`;
+
+  // Unidades
+  const icons={'Camiones Bomba':'🚒','Camión Escalera':'🪜','Camión Cisterna':'🛢️','Salvamento':'⛑️','Rescate':'🚨','Ambulancias':'🚑','Motobombas':'⚙️'};
+  document.getElementById('panel-units').innerHTML=
+    Object.entries(s.units||{}).filter(([,v])=>v>0).map(([k,v])=>
+      `<div class="unit-card"><div class="unit-icon">${icons[k]||'🔧'}</div><div class="unit-info"><strong>${v}</strong><span>${k}</span></div></div>`
+    ).join('') || '<div style="font-size:0.8rem;color:var(--text-dim);grid-column:1/-1">Sin unidades registradas</div>';
+}
+
+function closePanel(){
+  document.getElementById('panel').classList.remove('open');
+  if(activeZone){map.removeLayer(activeZone);activeZone=null;}
+  if(activeStation){
+    const s=allStations.find(x=>x.id===activeStation.id);
+    if(s) markerMap[activeStation.id]?.setIcon(s.type==='substation'?subIcon():fireIcon());
+    activeStation=null;
+  }
+}
+
+// ══════════════════════════════════════
+// CARGA EN TIEMPO REAL — onSnapshot
+// ══════════════════════════════════════
+const allStations=[];
+
+function addOrUpdateMarker(s){
+  const existing=allStations.findIndex(x=>x.id===s.id);
+  if(existing>=0) allStations[existing]=s; else allStations.push(s);
+
+  if(markerMap[s.id]){
+    map.removeLayer(markerMap[s.id]);
+    delete markerMap[s.id];
+  }
+  const icon=s.type==='substation'?subIcon():fireIcon();
+  const m=L.marker([s.lat,s.lng],{icon}).addTo(map);
+  markerMap[s.id]=m;
+  m.on('click',()=>selectStation(s));
+}
+
+function removeMarker(id){
+  if(markerMap[id]){map.removeLayer(markerMap[id]);delete markerMap[id];}
+  const idx=allStations.findIndex(x=>x.id===id);
+  if(idx>=0) allStations.splice(idx,1);
+}
+
+function updateStats(){
+  const stations=allStations.filter(s=>s.type==='station').length;
+  const subs=allStations.filter(s=>s.type==='substation').length;
+  const personal=allStations.reduce((a,s)=>a+(s.staffFixed||0)+(s.staffVolunteer||0),0);
+  const provincias=new Set(allStations.map(s=>s.province).filter(Boolean)).size;
+
+  document.getElementById('st-estaciones').textContent=stations||'0';
+  document.getElementById('st-subestaciones').textContent=subs||'0';
+  document.getElementById('st-personal').textContent=personal||'0';
+  document.getElementById('st-provincias').textContent=provincias||'0';
+  document.getElementById('map-count').textContent=allStations.length;
+}
+
+// Escucha en tiempo real — cualquier cambio en Firestore actualiza el mapa y las stats
+db.collection('stations').onSnapshot(snapshot=>{
+  snapshot.docChanges().forEach(change=>{
+    const s={id:change.doc.id,...change.doc.data()};
+    if(change.type==='added'||change.type==='modified') addOrUpdateMarker(s);
+    if(change.type==='removed') removeMarker(change.doc.id);
+  });
+  updateStats();
+  hideLoading();
+},err=>{
+  console.error('Error Firestore:',err);
+  document.getElementById('ls').innerHTML=`<div class="ls-inner"><div style="font-size:3rem">⚠️</div><h2 style="font-family:'Bebas Neue',sans-serif;color:#C8102E;font-size:2rem;letter-spacing:0.06em;margin-top:1rem">Error de conexión</h2><p style="color:#A09090;font-size:0.85rem;max-width:360px;text-align:center;margin-top:0.5rem">${err.message}</p></div>`;
+});
+
+// Cisternas
+db.collection('cisterns').onSnapshot(snap=>{
+  snap.docChanges().forEach(ch=>{
+    if(ch.type==='added'){
+      const c={id:ch.doc.id,...ch.doc.data()};
+      const m=L.marker([c.lat,c.lng],{icon:cisternIcon()}).addTo(map);
+      const safe=k=>sanitize(String(c[k]||''));
+      m.bindPopup(`<div style="font-family:'Barlow Condensed',sans-serif;min-width:180px"><strong style="color:#0097A7">💧 Cisterna Voluntaria</strong><br><b>Propietario:</b> ${safe('owner')}<br><b>Capacidad:</b> ${safe('volume')}<br><b>Contacto:</b> ${safe('phone')}<br><i style="color:#777">${safe('note')}</i></div>`);
+    }
+  });
+});
+
+function hideLoading(){
+  const ls=document.getElementById('ls');
+  if(!ls.classList.contains('hidden')){
+    ls.classList.add('hidden');
+    setTimeout(()=>ls.style.display='none',700);
+  }
+}
+
+// Reveal on scroll
+const revEls=document.querySelectorAll('.reveal');
+new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');}});
+},{threshold:0.1}).observe(revEls[0]);
+revEls.forEach(el=>new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible');});
+},{threshold:0.1}).observe(el));
+</script>
+</body>
+</html>
