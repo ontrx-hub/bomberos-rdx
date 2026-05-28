@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Panel Admin — Bomberos RD</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --red:#C8102E;--red-deep:#7A0018;--red-glow:#FF1A3C;
+  --gold:#F5A623;--black:#0D0D0D;--dark:#111;
+  --panel:#161616;--card:#1C1C1C;--card2:#222;
+  --text:#F0E8E0;--text-dim:#A09090;--text-muted:#6A6060;
+  --border:#2A2A2A;--border-red:rgba(200,16,46,0.3);
+  --sub:#1565C0;--green:#1D9E75;
+}
+html,body{height:100%;font-family:'Barlow Condensed',sans-serif;background:var(--dark);color:var(--text);overflow:hidden;}
+
+/* ── LOGIN SCREEN ── */
+#login-screen{position:fixed;inset:0;z-index:9999;background:var(--red-deep);display:flex;align-items:center;justify-content:center;}
+#login-screen.hidden{display:none;}
+.login-bg{position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,#E8001A 0%,transparent 70%);pointer-events:none;}
+.login-bg::after{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:60px 60px;}
+.login-card{position:relative;z-index:2;background:rgba(13,13,13,0.85);border:1px solid rgba(200,16,46,0.35);border-radius:12px;padding:2.5rem 2.2rem;width:100%;max-width:380px;backdrop-filter:blur(16px);animation:fadeUp 0.6s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.login-emblem{width:64px;height:64px;background:var(--red);border-radius:50%;border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:1.8rem;margin:0 auto 1.2rem;box-shadow:0 0 24px rgba(245,166,35,0.3);}
+.login-title{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.08em;color:#fff;text-align:center;margin-bottom:4px;}
+.login-sub{font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.35);text-align:center;margin-bottom:1.8rem;}
+.lf{margin-bottom:14px;}
+.lf label{display:block;font-family:'JetBrains Mono',monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--text-dim);margin-bottom:5px;}
+.lf input{width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:5px;color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:1rem;padding:10px 12px;outline:none;transition:border-color 0.2s;}
+.lf input:focus{border-color:var(--red);}
+#login-error{font-size:0.78rem;color:#FF6B7A;text-align:center;min-height:1.1rem;margin-bottom:0.4rem;}
+.btn-login{width:100%;background:var(--red);color:#fff;border:none;padding:13px;border-radius:5px;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:0.12em;cursor:pointer;transition:background 0.2s;margin-top:4px;}
+.btn-login:hover{background:var(--red-deep);}
+.login-note{font-size:0.72rem;text-align:center;color:rgba(255,255,255,0.25);letter-spacing:0.06em;margin-top:1rem;}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+
+/* ── APP LAYOUT ── */
+#app{display:none;height:100vh;flex-direction:column;}
+#app.visible{display:flex;}
+
+/* HEADER */
+#header{height:60px;background:linear-gradient(135deg,var(--red-deep) 0%,var(--red) 60%,#A00020 100%);display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;flex-shrink:0;box-shadow:0 2px 16px rgba(200,16,46,0.5);position:relative;z-index:200;}
+#header::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent,transparent 40px,rgba(255,255,255,0.025) 40px,rgba(255,255,255,0.025) 41px);pointer-events:none;}
+.hdr-left{display:flex;align-items:center;gap:12px;z-index:1;}
+.hdr-emblem{width:38px;height:38px;background:var(--black);border-radius:50%;border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:1.2rem;box-shadow:0 0 10px rgba(245,166,35,0.35);}
+.hdr-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:0.08em;color:#fff;}
+.hdr-title span{font-family:'JetBrains Mono',monospace;font-size:0.58rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);display:block;opacity:0.8;}
+.hdr-right{display:flex;align-items:center;gap:10px;z-index:1;}
+.user-pill{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.15);border-radius:100px;padding:5px 14px;}
+.user-pill-dot{width:8px;height:8px;border-radius:50%;background:var(--green);}
+.user-pill-name{font-family:'JetBrains Mono',monospace;font-size:0.68rem;letter-spacing:0.08em;color:rgba(255,255,255,0.7);}
+.btn-logout{background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.6);padding:6px 12px;border-radius:4px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:0.78rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;transition:all 0.2s;}
+.btn-logout:hover{background:rgba(200,16,46,0.4);border-color:var(--red);color:#fff;}
+.btn-pub{background:rgba(245,166,35,0.12);border:1px solid rgba(245,166,35,0.35);color:var(--gold);padding:6px 12px;border-radius:4px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:0.78rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;text-decoration:none;transition:all 0.2s;}
+.btn-pub:hover{background:rgba(245,166,35,0.25);}
+
+/* MAIN BODY */
+.app-body{flex:1;display:flex;overflow:hidden;}
+
+/* SIDEBAR */
+#sidebar{width:220px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;}
+.sidebar-section{font-family:'JetBrains Mono',monospace;font-size:0.58rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-muted);padding:16px 16px 6px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;font-size:0.9rem;font-weight:600;letter-spacing:0.04em;color:var(--text-dim);cursor:pointer;transition:all 0.15s;border-left:3px solid transparent;}
+.nav-item:hover{background:var(--card);color:var(--text);}
+.nav-item.active{background:var(--card);color:#fff;border-left-color:var(--red);}
+.nav-item .ni{font-size:1.1rem;width:20px;text-align:center;}
+.sidebar-bottom{margin-top:auto;padding:16px;border-top:1px solid var(--border);}
+.sidebar-stats{display:grid;gap:8px;}
+.sb-stat{background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;}
+.sb-stat-val{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:0.04em;color:var(--red);line-height:1;}
+.sb-stat-lbl{font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-top:2px;}
+
+/* CONTENT */
+#content{flex:1;overflow-y:auto;background:var(--dark);}
+.page{display:none;padding:24px;max-width:1200px;}
+.page.active{display:block;}
+.page-title{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:0.05em;color:#fff;margin-bottom:4px;}
+.page-sub{font-size:0.85rem;color:var(--text-muted);margin-bottom:24px;letter-spacing:0.03em;}
+
+/* CARDS */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:24px;}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;position:relative;overflow:hidden;}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--red);}
+.kpi-card.blue::before{background:var(--sub);}
+.kpi-card.green::before{background:var(--green);}
+.kpi-card.gold::before{background:var(--gold);}
+.kpi-val{font-family:'Bebas Neue',sans-serif;font-size:2.8rem;letter-spacing:0.04em;color:#fff;line-height:1;}
+.kpi-lbl{font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);margin-top:4px;}
+
+/* STATION TABLE */
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.table-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);}
+.table-title{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:0.06em;color:#fff;}
+.btn-add{background:var(--red);color:#fff;border:none;padding:8px 18px;border-radius:5px;font-family:'Barlow Condensed',sans-serif;font-size:0.85rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;transition:background 0.2s;display:flex;align-items:center;gap:6px;}
+.btn-add:hover{background:var(--red-deep);}
+.st-table{width:100%;border-collapse:collapse;}
+.st-table th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);padding:10px 16px;border-bottom:1px solid var(--border);}
+.st-table td{padding:12px 16px;font-size:0.9rem;border-bottom:1px solid rgba(42,42,42,0.5);vertical-align:middle;}
+.st-table tr:last-child td{border-bottom:none;}
+.st-table tr:hover td{background:rgba(255,255,255,0.02);}
+.type-badge{display:inline-block;font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:2px 8px;border-radius:3px;}
+.type-badge.main{background:rgba(200,16,46,0.15);color:#FF6B7A;border:1px solid rgba(200,16,46,0.3);}
+.type-badge.sub{background:rgba(21,101,192,0.15);color:#64B5F6;border:1px solid rgba(21,101,192,0.3);}
+.st-name{font-weight:600;color:#fff;}
+.st-detail{font-size:0.78rem;color:var(--text-muted);margin-top:1px;}
+.action-btns{display:flex;gap:6px;}
+.btn-edit{background:rgba(245,166,35,0.1);border:1px solid rgba(245,166,35,0.3);color:var(--gold);padding:5px 10px;border-radius:4px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:0.75rem;font-weight:600;text-transform:uppercase;transition:all 0.2s;}
+.btn-edit:hover{background:rgba(245,166,35,0.25);}
+.btn-del{background:rgba(200,16,46,0.1);border:1px solid rgba(200,16,46,0.25);color:#FF6B7A;padding:5px 10px;border-radius:4px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:0.75rem;font-weight:600;text-transform:uppercase;transition:all 0.2s;}
+.btn-del:hover{background:rgba(200,16,46,0.3);}
+.empty-row{text-align:center;padding:40px;color:var(--text-muted);font-size:0.9rem;font-style:italic;}
+
+/* MAP PAGE */
+#map-page-content{display:none;flex:1;flex-direction:column;overflow:hidden;}
+#map-page-content.active{display:flex;}
+#admin-map-topbar{background:var(--panel);border-bottom:1px solid var(--border);padding:0 1rem;height:50px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.map-tb-label{font-family:'JetBrains Mono',monospace;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-muted);}
+.tb-btns{display:flex;gap:8px;}
+.tb-btn{background:rgba(200,16,46,0.15);border:1px solid rgba(200,16,46,0.3);color:var(--text-dim);padding:5px 12px;border-radius:4px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:0.75rem;font-weight:600;text-transform:uppercase;transition:all 0.2s;white-space:nowrap;}
+.tb-btn:hover,.tb-btn.active{background:var(--red);color:#fff;border-color:var(--red);}
+.tb-btn.sub-btn{border-color:rgba(21,101,192,0.4);background:rgba(21,101,192,0.1);}
+.tb-btn.sub-btn:hover,.tb-btn.sub-btn.active{background:var(--sub);border-color:var(--sub);color:#fff;}
+.tb-btn.cistern-btn{border-color:rgba(0,151,167,0.4);background:rgba(0,151,167,0.1);}
+.tb-btn.cistern-btn:hover,.tb-btn.cistern-btn.active{background:#0097A7;border-color:#0097A7;color:#fff;}
+#admin-map{flex:1;}
+
+/* MODAL */
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:3000;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(6px);}
+.modal-ov.show{display:flex;}
+.modal-box{background:#181010;border:1px solid var(--red);border-radius:12px;padding:2rem;width:100%;max-width:520px;max-height:92dvh;overflow-y:auto;box-shadow:0 0 60px rgba(200,16,46,0.2);}
+.modal-box.sub-modal{background:#080f18;border-color:var(--sub);}
+.modal-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.06em;color:var(--gold);margin-bottom:1.4rem;}
+.sub-modal .modal-title{color:#64B5F6;}
+.mf{margin-bottom:12px;}
+.mf label{display:block;font-family:'JetBrains Mono',monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--text-muted);margin-bottom:5px;}
+.mf input,.mf select,.mf textarea{width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:0.95rem;padding:10px 12px;outline:none;transition:border-color 0.2s;}
+.mf input:focus,.mf select:focus,.mf textarea:focus{border-color:var(--red);}
+.mf select option{background:#1a0505;}
+.mf textarea{resize:vertical;min-height:70px;}
+.mf-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.modal-actions{display:flex;gap:8px;margin-top:1.2rem;}
+.modal-actions button{flex:1;padding:11px;border:none;border-radius:5px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:0.1em;cursor:pointer;transition:opacity 0.2s;}
+.btn-save{background:var(--red);color:#fff;}
+.btn-save.sub{background:var(--sub);}
+.btn-cancel{background:var(--card2);color:var(--text-dim);}
+.modal-actions button:hover{opacity:0.85;}
+
+/* PHOTO UPLOAD */
+.photo-drop{background:rgba(255,255,255,0.03);border:2px dashed var(--border);border-radius:8px;padding:1.2rem;text-align:center;cursor:pointer;transition:border-color 0.2s;margin-bottom:8px;}
+.photo-drop:hover,.photo-drop.over{border-color:var(--gold);}
+.photo-drop-text{font-size:0.82rem;color:var(--text-muted);margin-top:4px;}
+.photo-preview-wrap{position:relative;display:inline-block;margin-top:8px;}
+.photo-preview{max-width:100%;max-height:140px;border-radius:6px;object-fit:cover;display:none;}
+.photo-remove{position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:0.75rem;display:none;align-items:center;justify-content:center;}
+
+/* UNITS EDITOR */
+.units-editor{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.unit-input-row{display:grid;grid-template-columns:1fr 60px;gap:6px;align-items:center;}
+.unit-input-row label{font-size:0.82rem;color:var(--text-dim);}
+.unit-input-row input{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:0.9rem;padding:6px 8px;outline:none;text-align:center;}
+.unit-input-row input:focus{border-color:var(--gold);}
+
+/* TOAST */
+#toast{position:fixed;bottom:20px;right:20px;z-index:9000;background:#0d2010;border:1px solid #4caf50;border-radius:8px;padding:12px 18px;font-size:0.82rem;color:#81c784;display:none;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,0.5);max-width:320px;}
+#toast.show{display:flex;}
+#toast.error{background:#200d0d;border-color:var(--red);color:#ef9a9a;}
+
+/* MARKERS admin */
+.fire-marker{width:36px;height:36px;background:var(--red);border:2.5px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(200,16,46,0.7);cursor:pointer;}
+.fire-marker.selected{box-shadow:0 0 0 3px rgba(200,16,46,0.5),0 3px 14px rgba(200,16,46,0.9);}
+.fire-marker .mi{transform:rotate(45deg);font-size:1rem;margin-top:-2px;}
+.sub-marker{width:32px;height:32px;background:var(--sub);border:2.5px solid #fff;border-radius:4px;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(21,101,192,0.7);cursor:pointer;}
+.sub-marker.selected{box-shadow:0 0 0 3px rgba(21,101,192,0.5),0 3px 14px rgba(21,101,192,0.9);}
+.sub-marker .mi{font-size:1rem;}
+.cistern-marker{width:28px;height:28px;background:#0097A7;border:2.5px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.85rem;cursor:pointer;}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-bg"></div>
+  <div class="login-card">
+    <div class="login-emblem">🔥</div>
+    <div class="login-title">Panel Admin</div>
+    <div class="login-sub">Acceso restringido · Solo personal autorizado</div>
+    <div id="login-error"></div>
+    <div class="lf"><label>Correo electrónico</label>
+      <input type="email" id="li-email" placeholder="correo@dominio.com" autocomplete="email"/>
+    </div>
+    <div class="lf"><label>Contraseña</label>
+      <input type="password" id="li-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <button class="btn-login" onclick="doLogin()" id="login-btn">INICIAR SESIÓN</button>
+    <div class="login-note">Cuerpo de Bomberos RD · Sistema Nacional</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- HEADER -->
+  <div id="header">
+    <div class="hdr-left">
+      <div class="hdr-emblem">🔥</div>
+      <div class="hdr-title">Panel Administrador<span>Bomberos RD · Sistema Nacional</span></div>
+    </div>
+    <div class="hdr-right">
+      <a href="../" target="_blank" class="btn-pub">🌐 Ver web pública</a>
+      <div class="user-pill"><div class="user-pill-dot"></div><span class="user-pill-name" id="user-email">—</span></div>
+      <button class="btn-logout" onclick="doLogout()">Salir</button>
+    </div>
+  </div>
+
+  <div class="app-body">
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+      <div class="sidebar-section">Principal</div>
+      <div class="nav-item active" onclick="showPage('dashboard')"><span class="ni">📊</span> Dashboard</div>
+      <div class="nav-item" onclick="showPage('map')"><span class="ni">🗺</span> Mapa nacional</div>
+      <div class="nav-section"></div>
+      <div class="sidebar-section">Gestión</div>
+      <div class="nav-item" onclick="showPage('stations')"><span class="ni">🚒</span> Estaciones</div>
+      <div class="nav-item" onclick="showPage('substations')"><span class="ni">🏠</span> Sub-Estaciones</div>
+      <div class="nav-item" onclick="showPage('cisterns')"><span class="ni">💧</span> Cisternas</div>
+      <div class="sidebar-bottom">
+        <div class="sidebar-stats">
+          <div class="sb-stat"><div class="sb-stat-val" id="sb-stations">0</div><div class="sb-stat-lbl">Estaciones</div></div>
+          <div class="sb-stat"><div class="sb-stat-val" id="sb-subs">0</div><div class="sb-stat-lbl">Sub-Estaciones</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTENT (pages) -->
+    <div id="content">
+
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-title">Dashboard Nacional</div>
+        <div class="page-sub">Resumen en tiempo real del sistema</div>
+        <div class="cards-grid">
+          <div class="kpi-card"><div class="kpi-val" id="kpi-est">0</div><div class="kpi-lbl">Estaciones principales</div></div>
+          <div class="kpi-card blue"><div class="kpi-val" id="kpi-sub">0</div><div class="kpi-lbl">Sub-estaciones</div></div>
+          <div class="kpi-card green"><div class="kpi-val" id="kpi-per">0</div><div class="kpi-lbl">Personal total registrado</div></div>
+          <div class="kpi-card gold"><div class="kpi-val" id="kpi-pro">0</div><div class="kpi-lbl">Provincias con cobertura</div></div>
+        </div>
+        <div class="table-wrap">
+          <div class="table-header">
+            <div class="table-title">Últimas estaciones agregadas</div>
+            <button class="btn-add" onclick="showPage('stations')">+ Agregar estación</button>
+          </div>
+          <table class="st-table">
+            <thead><tr><th>Estación</th><th>Provincia</th><th>Intendente</th><th>Personal</th><th>Tipo</th></tr></thead>
+            <tbody id="recent-tbody"><tr><td colspan="5" class="empty-row">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- STATIONS -->
+      <div class="page" id="page-stations">
+        <div class="page-title">Estaciones Principales</div>
+        <div class="page-sub">Gestiona todas las estaciones de bomberos del país</div>
+        <div class="table-wrap">
+          <div class="table-header">
+            <div class="table-title">Listado de estaciones</div>
+            <button class="btn-add" onclick="openStationModal()">+ Nueva estación</button>
+          </div>
+          <table class="st-table">
+            <thead><tr><th>Nombre</th><th>Provincia</th><th>Intendente</th><th>Personal</th><th>Unidades</th><th>Acciones</th></tr></thead>
+            <tbody id="stations-tbody"><tr><td colspan="6" class="empty-row">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SUB-STATIONS -->
+      <div class="page" id="page-substations">
+        <div class="page-title">Sub-Estaciones</div>
+        <div class="page-sub">Gestiona las sub-estaciones del sistema</div>
+        <div class="table-wrap">
+          <div class="table-header">
+            <div class="table-title">Listado de sub-estaciones</div>
+            <button class="btn-add" onclick="openStationModal('substation')">+ Nueva sub-estación</button>
+          </div>
+          <table class="st-table">
+            <thead><tr><th>Nombre</th><th>Provincia</th><th>Jefe</th><th>Personal</th><th>Unidades</th><th>Acciones</th></tr></thead>
+            <tbody id="substations-tbody"><tr><td colspan="6" class="empty-row">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CISTERNS -->
+      <div class="page" id="page-cisterns">
+        <div class="page-title">Cisternas Voluntarias</div>
+        <div class="page-sub">Registro de cisternas privadas disponibles para emergencias</div>
+        <div class="table-wrap">
+          <div class="table-header">
+            <div class="table-title">Listado de cisternas</div>
+            <button class="btn-add" onclick="openCisternModal()">+ Nueva cisterna</button>
+          </div>
+          <table class="st-table">
+            <thead><tr><th>Propietario</th><th>Capacidad</th><th>Teléfono</th><th>Disponibilidad</th><th>Acciones</th></tr></thead>
+            <tbody id="cisterns-tbody"><tr><td colspan="5" class="empty-row">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+
+    <!-- MAP PAGE (fuera del scroll) -->
+    <div id="map-page-content">
+      <div id="admin-map-topbar">
+        <span class="map-tb-label">Modo edición — haz clic en el mapa para colocar marcadores</span>
+        <div class="tb-btns">
+          <button class="tb-btn active" id="tb-st" onclick="setMapMode('station')">🚒 Estación</button>
+          <button class="tb-btn sub-btn" id="tb-sub" onclick="setMapMode('substation')">🏠 Sub-Est.</button>
+          <button class="tb-btn cistern-btn" id="tb-cis" onclick="setMapMode('cistern')">💧 Cisterna</button>
+        </div>
+      </div>
+      <div id="admin-map"></div>
+    </div>
+  </div>
+</div>
+
+<!-- STATION MODAL -->
+<div class="modal-ov" id="station-modal">
+  <div class="modal-box" id="station-modal-box">
+    <div class="modal-title" id="station-modal-title">Nueva Estación</div>
+    <div class="mf"><label>Nombre *</label><input type="text" id="sm-name" placeholder="Cuerpo de Bomberos de..."/></div>
+    <div class="mf-row">
+      <div class="mf"><label>Número / ID</label><input type="text" id="sm-number" placeholder="Estación #01"/></div>
+      <div class="mf"><label>Provincia *</label>
+        <select id="sm-province">
+          <option value="">Seleccionar...</option>
+          <option>Distrito Nacional</option><option>Santiago</option><option>La Vega</option>
+          <option>San Pedro de Macorís</option><option>La Romana</option><option>Puerto Plata</option>
+          <option>San Cristóbal</option><option>Barahona</option><option>San Juan</option>
+          <option>Azua</option><option>Monte Cristi</option><option>Espaillat</option>
+          <option>Duarte</option><option>Sánchez Ramírez</option><option>La Altagracia</option>
+          <option>El Seibo</option><option>Hato Mayor</option><option>Samaná</option>
+          <option>María Trinidad Sánchez</option><option>Valverde</option>
+          <option>Monseñor Nouel</option><option>Hermanas Mirabal</option>
+          <option>Dajabón</option><option>Santiago Rodríguez</option><option>Elías Piña</option>
+          <option>Independencia</option><option>Pedernales</option><option>Bahoruco</option>
+          <option>Peravia</option><option>Monte Plata</option><option>Santo Domingo</option>
+          <option>San José de Ocoa</option>
+        </select>
+      </div>
+    </div>
+    <div class="mf"><label>Dirección</label><input type="text" id="sm-address" placeholder="Calle, municipio"/></div>
+    <div class="mf-row">
+      <div class="mf"><label>Intendente / Jefe</label><input type="text" id="sm-chief" placeholder="Nombre y rango"/></div>
+      <div class="mf"><label>Teléfono</label><input type="text" id="sm-phone" placeholder="(809) 000-0000"/></div>
+    </div>
+    <div class="mf-row">
+      <div class="mf"><label>Personal fijo</label><input type="number" min="0" id="sm-fixed" placeholder="0"/></div>
+      <div class="mf"><label>Personal voluntario</label><input type="number" min="0" id="sm-vol" placeholder="0"/></div>
+    </div>
+    <div class="mf-row">
+      <div class="mf"><label>Latitud *</label><input type="number" step="0.000001" id="sm-lat" placeholder="18.4742"/></div>
+      <div class="mf"><label>Longitud *</label><input type="number" step="0.000001" id="sm-lng" placeholder="-69.9012"/></div>
+    </div>
+    <p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:12px">💡 Puedes ir a la página del Mapa, hacer clic en un punto y la coordenada aparece aquí automáticamente.</p>
+    <!-- FOTO -->
+    <div class="mf"><label>Foto de la estación</label>
+      <div class="photo-drop" id="photo-drop" onclick="document.getElementById('photo-file').click()" ondragover="e=>{e.preventDefault();this.classList.add('over')}" ondragleave="this.classList.remove('over')" ondrop="handleDrop(event)">
+        <div style="font-size:1.8rem">📷</div>
+        <div class="photo-drop-text">Haz clic o arrastra una imagen aquí<br><span style="font-size:0.7rem">JPG, PNG, WebP — máx. 5MB</span></div>
+      </div>
+      <div class="photo-preview-wrap">
+        <img id="photo-preview" class="photo-preview"/>
+        <button id="photo-remove-btn" class="photo-remove" onclick="removePhoto()">✕</button>
+      </div>
+      <input type="file" id="photo-file" accept="image/*" style="display:none" onchange="handleFileSelect(event)"/>
+    </div>
+    <!-- UNIDADES -->
+    <div class="mf"><label>Unidades de combate</label>
+      <div class="units-editor">
+        <div class="unit-input-row"><label>Camiones Bomba</label><input type="number" min="0" id="u-bomba" value="0"/></div>
+        <div class="unit-input-row"><label>Camión Escalera</label><input type="number" min="0" id="u-escalera" value="0"/></div>
+        <div class="unit-input-row"><label>Camión Cisterna</label><input type="number" min="0" id="u-cisterna" value="0"/></div>
+        <div class="unit-input-row"><label>Rescate</label><input type="number" min="0" id="u-rescate" value="0"/></div>
+        <div class="unit-input-row"><label>Ambulancias</label><input type="number" min="0" id="u-ambulancia" value="0"/></div>
+        <div class="unit-input-row"><label>Salvamento</label><input type="number" min="0" id="u-salvamento" value="0"/></div>
+        <div class="unit-input-row"><label>Motobombas</label><input type="number" min="0" id="u-motobomba" value="0"/></div>
+        <div class="unit-input-row"><label>K9</label><input type="number" min="0" id="u-k9" value="0"/></div>
+      </div>
+    </div>
+    <div class="mf"><label>Información adicional</label><textarea id="sm-notes" placeholder="Especialidades, observaciones..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('station-modal')">Cancelar</button>
+      <button class="btn-save" id="sm-save-btn" onclick="saveStation()">GUARDAR ESTACIÓN</button>
+    </div>
+  </div>
+</div>
+
+<!-- CISTERN MODAL -->
+<div class="modal-ov" id="cistern-modal">
+  <div class="modal-box sub-modal">
+    <div class="modal-title">💧 Nueva Cisterna Voluntaria</div>
+    <div class="mf"><label>Propietario *</label><input type="text" id="cm-owner" placeholder="Nombre o empresa"/></div>
+    <div class="mf-row">
+      <div class="mf"><label>Capacidad</label><input type="text" id="cm-volume" placeholder="20,000 L"/></div>
+      <div class="mf"><label>Teléfono</label><input type="text" id="cm-phone" placeholder="(809) 000-0000"/></div>
+    </div>
+    <div class="mf"><label>Disponibilidad</label><input type="text" id="cm-note" placeholder="Disponible 24/7"/></div>
+    <div class="mf-row">
+      <div class="mf"><label>Latitud *</label><input type="number" step="0.000001" id="cm-lat" placeholder="18.4742"/></div>
+      <div class="mf"><label>Longitud *</label><input type="number" step="0.000001" id="cm-lng" placeholder="-69.9012"/></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('cistern-modal')">Cancelar</button>
+      <button class="btn-save sub" onclick="saveCistern()">GUARDAR CISTERNA</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+<script>
+// ══════════════════════════════════════
+// FIREBASE
+// ══════════════════════════════════════
+firebase.initializeApp({
+  apiKey:"AIzaSyBzu09OkMcjZzpJ16ePYpRr0Q02A0n6-zU",
+  authDomain:"bomberos-rdx.firebaseapp.com",
+  projectId:"bomberos-rdx",
+  storageBucket:"bomberos-rdx.firebasestorage.app",
+  messagingSenderId:"272246782474",
+  appId:"1:272246782474:web:a678a9219575b53bc1fdf3"
+});
+const db      = firebase.firestore();
+const auth    = firebase.auth();
+const storage = firebase.storage();
+
+// ══════════════════════════════════════
+// SEGURIDAD — sanitize
+// ══════════════════════════════════════
+function san(str){
+  if(typeof str!=='string') return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').trim().slice(0,500);
+}
+function sanNum(v,min=0,max=9999){const n=parseInt(v,10);return isNaN(n)?0:Math.max(min,Math.min(max,n));}
+
+// ══════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════
+let loginAttempts=0, lockUntil=0;
+
+auth.onAuthStateChanged(user=>{
+  if(user){
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('app').classList.add('visible');
+    document.getElementById('user-email').textContent=user.email;
+    initApp();
+  }else{
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('app').classList.remove('visible');
+  }
+});
+
+async function doLogin(){
+  const now=Date.now();
+  if(lockUntil>now){toast(`⚠ Bloqueado. Espera ${Math.ceil((lockUntil-now)/1000)}s.`,true);return;}
+  const email=document.getElementById('li-email').value.trim();
+  const pass=document.getElementById('li-pass').value;
+  if(!email||!pass){document.getElementById('login-error').textContent='⚠ Completa todos los campos';return;}
+  const btn=document.getElementById('login-btn');
+  btn.disabled=true;btn.textContent='Verificando...';
+  document.getElementById('login-error').textContent='';
+  try{
+    await auth.signInWithEmailAndPassword(email,pass);
+    loginAttempts=0;
+  }catch(e){
+    loginAttempts++;
+    if(loginAttempts>=5){lockUntil=Date.now()+5*60*1000;loginAttempts=0;}
+    document.getElementById('login-error').textContent='⚠ Correo o contraseña incorrectos';
+    const card=document.querySelector('.login-card');
+    card.style.animation='none';card.offsetHeight;card.style.animation='shake 0.35s ease';
+  }
+  btn.disabled=false;btn.textContent='INICIAR SESIÓN';
+}
+
+function doLogout(){
+  auth.signOut();
+  showPage('dashboard');
+}
+
+// ══════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════
+let currentPage='dashboard';
+
+function showPage(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('map-page-content').classList.remove('active');
+  document.getElementById('content').style.display='';
+
+  const navMap={'dashboard':0,'map':1,'stations':3,'substations':4,'cisterns':5};
+  const items=document.querySelectorAll('.nav-item');
+  if(navMap[page]!==undefined) items[navMap[page]]?.classList.add('active');
+
+  if(page==='map'){
+    document.getElementById('content').style.display='none';
+    document.getElementById('map-page-content').classList.add('active');
+    if(adminMap) setTimeout(()=>adminMap.invalidateSize(),100);
+  }else{
+    const el=document.getElementById('page-'+page);
+    if(el) el.classList.add('active');
+  }
+  currentPage=page;
+}
+
+// ══════════════════════════════════════
+// ADMIN MAP
+// ══════════════════════════════════════
+let adminMap=null, mapMode='station', adminMarkers={}, adminAllStations=[];
+
+function initAdminMap(){
+  if(adminMap) return;
+  adminMap=L.map('admin-map',{center:[18.9,-70.1],zoom:8});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© OpenStreetMap',maxZoom:19
+  }).addTo(adminMap);
+
+  adminMap.on('click',function(e){
+    // Coordenadas al modal abierto
+    const lat=e.latlng.lat.toFixed(6);
+    const lng=e.latlng.lng.toFixed(6);
+    if(document.getElementById('station-modal').classList.contains('show')){
+      document.getElementById('sm-lat').value=lat;
+      document.getElementById('sm-lng').value=lng;
+      toast('📍 Coordenadas capturadas del mapa');
+    }else if(document.getElementById('cistern-modal').classList.contains('show')){
+      document.getElementById('cm-lat').value=lat;
+      document.getElementById('cm-lng').value=lng;
+      toast('📍 Coordenadas capturadas del mapa');
+    }else{
+      // Modo agregar directo
+      if(mapMode==='station'||mapMode==='substation'){
+        openStationModal(mapMode,lat,lng);
+      }else if(mapMode==='cistern'){
+        openCisternModal(lat,lng);
+      }
+    }
+  });
+
+  // Cargar marcadores existentes
+  db.collection('stations').onSnapshot(snap=>{
+    snap.docChanges().forEach(ch=>{
+      const s={id:ch.doc.id,...ch.doc.data()};
+      if(ch.type==='removed'){
+        if(adminMarkers[s.id]){adminMap.removeLayer(adminMarkers[s.id]);delete adminMarkers[s.id];}
+        const idx=adminAllStations.findIndex(x=>x.id===s.id);if(idx>=0)adminAllStations.splice(idx,1);
+      }else{
+        if(adminMarkers[s.id]){adminMap.removeLayer(adminMarkers[s.id]);delete adminMarkers[s.id];}
+        const idx=adminAllStations.findIndex(x=>x.id===s.id);
+        if(idx>=0)adminAllStations[idx]=s;else adminAllStations.push(s);
+        const icon=s.type==='substation'
+          ?L.divIcon({className:'',html:`<div class="sub-marker"><div class="mi">🏠</div></div>`,iconSize:[32,32],iconAnchor:[16,16]})
+          :L.divIcon({className:'',html:`<div class="fire-marker"><div class="mi">🚒</div></div>`,iconSize:[36,36],iconAnchor:[18,36]});
+        const m=L.marker([s.lat,s.lng],{icon}).addTo(adminMap);
+        m.bindPopup(`<div style="font-family:'Barlow Condensed',sans-serif"><strong>${san(s.name)}</strong><br><small>${san(s.number||'')}</small><br><br><button onclick="editStation('${s.id}')" style="background:#C8102E;color:#fff;border:none;padding:4px 10px;border-radius:3px;cursor:pointer;font-size:0.8rem">✏ Editar</button></div>`);
+        adminMarkers[s.id]=m;
+      }
+    });
+  });
+}
+
+function setMapMode(mode){
+  mapMode=mode;
+  ['station','substation','cistern'].forEach(m=>{
+    const idMap={'station':'tb-st','substation':'tb-sub','cistern':'tb-cis'};
+    document.getElementById(idMap[m])?.classList.toggle('active',m===mode);
+  });
+}
+
+// ══════════════════════════════════════
+// DATA
+// ══════════════════════════════════════
+let allStations=[], allCisterns=[];
+
+function initApp(){
+  // Estaciones en tiempo real
+  db.collection('stations').orderBy('createdAt','desc').onSnapshot(snap=>{
+    allStations=snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderStationsTable();
+    renderSubstationsTable();
+    updateKPIs();
+    updateSidebar();
+    if(currentPage==='map') initAdminMap();
+  });
+  // Cisternas
+  db.collection('cisterns').onSnapshot(snap=>{
+    allCisterns=snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderCisternsTable();
+  });
+}
+
+function updateKPIs(){
+  const st=allStations.filter(s=>s.type==='station');
+  const sb=allStations.filter(s=>s.type==='substation');
+  const per=allStations.reduce((a,s)=>a+(s.staffFixed||0)+(s.staffVolunteer||0),0);
+  const prov=new Set(allStations.map(s=>s.province).filter(Boolean)).size;
+  document.getElementById('kpi-est').textContent=st.length;
+  document.getElementById('kpi-sub').textContent=sb.length;
+  document.getElementById('kpi-per').textContent=per;
+  document.getElementById('kpi-pro').textContent=prov;
+}
+function updateSidebar(){
+  document.getElementById('sb-stations').textContent=allStations.filter(s=>s.type==='station').length;
+  document.getElementById('sb-subs').textContent=allStations.filter(s=>s.type==='substation').length;
+}
+
+function renderStationsTable(){
+  const tbody=document.getElementById('stations-tbody');
+  const st=allStations.filter(s=>s.type==='station');
+  if(!st.length){tbody.innerHTML=`<tr><td colspan="6" class="empty-row">No hay estaciones registradas aún</td></tr>`;return;}
+  tbody.innerHTML=st.map(s=>`
+    <tr>
+      <td><div class="st-name">${san(s.name)}</div><div class="st-detail">${san(s.number||'')}</div></td>
+      <td>${san(s.province||'—')}</td>
+      <td>${san(s.chief||'—')}</td>
+      <td>${(s.staffFixed||0)+(s.staffVolunteer||0)} personas</td>
+      <td>${countUnits(s.units)} unidades</td>
+      <td><div class="action-btns">
+        <button class="btn-edit" onclick="editStation('${s.id}')">✏ Editar</button>
+        <button class="btn-del" onclick="deleteStation('${s.id}','${san(s.name)}')">🗑</button>
+      </div></td>
+    </tr>`).join('');
+  // Dashboard reciente
+  document.getElementById('recent-tbody').innerHTML=st.slice(0,5).map(s=>`
+    <tr>
+      <td><div class="st-name">${san(s.name)}</div></td>
+      <td>${san(s.province||'—')}</td>
+      <td>${san(s.chief||'—')}</td>
+      <td>${(s.staffFixed||0)+(s.staffVolunteer||0)}</td>
+      <td><span class="type-badge main">Principal</span></td>
+    </tr>`).join('') || `<tr><td colspan="5" class="empty-row">Sin estaciones</td></tr>`;
+}
+
+function renderSubstationsTable(){
+  const tbody=document.getElementById('substations-tbody');
+  const sb=allStations.filter(s=>s.type==='substation');
+  if(!sb.length){tbody.innerHTML=`<tr><td colspan="6" class="empty-row">No hay sub-estaciones registradas aún</td></tr>`;return;}
+  tbody.innerHTML=sb.map(s=>`
+    <tr>
+      <td><div class="st-name">${san(s.name)}</div><div class="st-detail">${san(s.number||'')}</div></td>
+      <td>${san(s.province||'—')}</td>
+      <td>${san(s.chief||'—')}</td>
+      <td>${(s.staffFixed||0)+(s.staffVolunteer||0)} personas</td>
+      <td>${countUnits(s.units)} unidades</td>
+      <td><div class="action-btns">
+        <button class="btn-edit" onclick="editStation('${s.id}')">✏ Editar</button>
+        <button class="btn-del" onclick="deleteStation('${s.id}','${san(s.name)}')">🗑</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+function renderCisternsTable(){
+  const tbody=document.getElementById('cisterns-tbody');
+  if(!allCisterns.length){tbody.innerHTML=`<tr><td colspan="5" class="empty-row">No hay cisternas registradas</td></tr>`;return;}
+  tbody.innerHTML=allCisterns.map(c=>`
+    <tr>
+      <td>${san(c.owner||'—')}</td>
+      <td>${san(c.volume||'—')}</td>
+      <td>${san(c.phone||'—')}</td>
+      <td>${san(c.note||'—')}</td>
+      <td><button class="btn-del" onclick="deleteCistern('${c.id}','${san(c.owner||'')}')">🗑</button></td>
+    </tr>`).join('');
+}
+
+function countUnits(units={}){return Object.values(units).reduce((a,v)=>a+(v||0),0);}
+
+// ══════════════════════════════════════
+// STATION MODAL
+// ══════════════════════════════════════
+let editingId=null, photoFile=null;
+
+function openStationModal(type='station', lat='', lng=''){
+  editingId=null; photoFile=null;
+  const isSub=type==='substation';
+  document.getElementById('station-modal-title').textContent=isSub?'🏠 Nueva Sub-Estación':'🚒 Nueva Estación';
+  document.getElementById('station-modal-box').className='modal-box'+(isSub?' sub-modal':'');
+  document.getElementById('sm-save-btn').className='btn-save'+(isSub?' sub':'');
+  ['sm-name','sm-number','sm-address','sm-chief','sm-phone','sm-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('sm-province').value='';
+  document.getElementById('sm-fixed').value='0';
+  document.getElementById('sm-vol').value='0';
+  document.getElementById('sm-lat').value=lat;
+  document.getElementById('sm-lng').value=lng;
+  ['u-bomba','u-escalera','u-cisterna','u-rescate','u-ambulancia','u-salvamento','u-motobomba','u-k9'].forEach(id=>document.getElementById(id).value='0');
+  removePhoto();
+  document.getElementById('station-modal').dataset.type=type;
+  document.getElementById('station-modal').classList.add('show');
+}
+
+function editStation(id){
+  const s=allStations.find(x=>x.id===id);if(!s)return;
+  editingId=id;photoFile=null;
+  const isSub=s.type==='substation';
+  document.getElementById('station-modal-title').textContent=isSub?'✏ Editar Sub-Estación':'✏ Editar Estación';
+  document.getElementById('station-modal-box').className='modal-box'+(isSub?' sub-modal':'');
+  document.getElementById('sm-save-btn').className='btn-save'+(isSub?' sub':'');
+  document.getElementById('sm-name').value=s.name||'';
+  document.getElementById('sm-number').value=s.number||'';
+  document.getElementById('sm-province').value=s.province||'';
+  document.getElementById('sm-address').value=s.address||'';
+  document.getElementById('sm-chief').value=s.chief||'';
+  document.getElementById('sm-phone').value=s.phone||'';
+  document.getElementById('sm-fixed').value=s.staffFixed||0;
+  document.getElementById('sm-vol').value=s.staffVolunteer||0;
+  document.getElementById('sm-lat').value=s.lat||'';
+  document.getElementById('sm-lng').value=s.lng||'';
+  document.getElementById('sm-notes').value=s.notes||'';
+  const u=s.units||{};
+  document.getElementById('u-bomba').value=u['Camiones Bomba']||0;
+  document.getElementById('u-escalera').value=u['Camión Escalera']||0;
+  document.getElementById('u-cisterna').value=u['Camión Cisterna']||0;
+  document.getElementById('u-rescate').value=u['Rescate']||0;
+  document.getElementById('u-ambulancia').value=u['Ambulancias']||0;
+  document.getElementById('u-salvamento').value=u['Salvamento']||0;
+  document.getElementById('u-motobomba').value=u['Motobombas']||0;
+  document.getElementById('u-k9').value=u['K9']||0;
+  // Foto existente
+  removePhoto();
+  if(s.photoUrl){
+    const prev=document.getElementById('photo-preview');
+    prev.src=s.photoUrl;prev.style.display='block';
+    document.getElementById('photo-remove-btn').style.display='flex';
+  }
+  document.getElementById('station-modal').dataset.type=s.type;
+  document.getElementById('station-modal').classList.add('show');
+}
+
+async function saveStation(){
+  const name=document.getElementById('sm-name').value.trim();
+  const lat=parseFloat(document.getElementById('sm-lat').value);
+  const lng=parseFloat(document.getElementById('sm-lng').value);
+  if(!name){toast('El nombre es obligatorio',true);return;}
+  if(isNaN(lat)||isNaN(lng)){toast('Las coordenadas son obligatorias',true);return;}
+  const province=document.getElementById('sm-province').value;
+  if(!province){toast('Selecciona una provincia',true);return;}
+
+  const btn=document.getElementById('sm-save-btn');
+  btn.disabled=true;btn.textContent='Guardando...';
+
+  let photoUrl=null;
+  // Si hay foto existente y no se cambió
+  if(editingId&&!photoFile){
+    const existing=allStations.find(x=>x.id===editingId);
+    photoUrl=existing?.photoUrl||null;
+  }
+  // Subir foto nueva
+  if(photoFile){
+    try{
+      const ext=photoFile.name.split('.').pop();
+      const ref=storage.ref(`stations/${Date.now()}.${ext}`);
+      const snap=await ref.put(photoFile);
+      photoUrl=await snap.ref.getDownloadURL();
+    }catch(e){toast('Error subiendo foto: '+e.message,true);btn.disabled=false;btn.textContent='GUARDAR ESTACIÓN';return;}
+  }
+
+  const data={
+    type:document.getElementById('station-modal').dataset.type||'station',
+    name:san(name),
+    number:san(document.getElementById('sm-number').value),
+    province,
+    address:san(document.getElementById('sm-address').value),
+    chief:san(document.getElementById('sm-chief').value),
+    phone:san(document.getElementById('sm-phone').value),
+    staffFixed:sanNum(document.getElementById('sm-fixed').value),
+    staffVolunteer:sanNum(document.getElementById('sm-vol').value),
+    lat,lng,
+    notes:san(document.getElementById('sm-notes').value),
+    photoUrl,
+    units:{
+      'Camiones Bomba':sanNum(document.getElementById('u-bomba').value),
+      'Camión Escalera':sanNum(document.getElementById('u-escalera').value),
+      'Camión Cisterna':sanNum(document.getElementById('u-cisterna').value),
+      'Rescate':sanNum(document.getElementById('u-rescate').value),
+      'Ambulancias':sanNum(document.getElementById('u-ambulancia').value),
+      'Salvamento':sanNum(document.getElementById('u-salvamento').value),
+      'Motobombas':sanNum(document.getElementById('u-motobomba').value),
+      'K9':sanNum(document.getElementById('u-k9').value),
+    }
+  };
+
+  try{
+    if(editingId){
+      await db.collection('stations').doc(editingId).update(data);
+      toast('Estación actualizada ✓');
+    }else{
+      data.createdAt=firebase.firestore.FieldValue.serverTimestamp();
+      await db.collection('stations').add(data);
+      toast('Estación creada ✓');
+    }
+    closeModal('station-modal');
+  }catch(e){toast('Error: '+e.message,true);}
+
+  btn.disabled=false;btn.textContent='GUARDAR ESTACIÓN';
+}
+
+async function deleteStation(id,name){
+  if(!confirm(`¿Eliminar "${name}"? Esta acción no se puede deshacer.`)) return;
+  try{
+    await db.collection('stations').doc(id).delete();
+    toast('Estación eliminada');
+  }catch(e){toast('Error: '+e.message,true);}
+}
+
+// ══════════════════════════════════════
+// CISTERN MODAL
+// ══════════════════════════════════════
+function openCisternModal(lat='',lng=''){
+  ['cm-owner','cm-volume','cm-phone','cm-note'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('cm-lat').value=lat;
+  document.getElementById('cm-lng').value=lng;
+  document.getElementById('cistern-modal').classList.add('show');
+}
+async function saveCistern(){
+  const owner=document.getElementById('cm-owner').value.trim();
+  const lat=parseFloat(document.getElementById('cm-lat').value);
+  const lng=parseFloat(document.getElementById('cm-lng').value);
+  if(!owner){toast('El propietario es obligatorio',true);return;}
+  if(isNaN(lat)||isNaN(lng)){toast('Las coordenadas son obligatorias',true);return;}
+  const data={owner:san(owner),volume:san(document.getElementById('cm-volume').value),phone:san(document.getElementById('cm-phone').value),note:san(document.getElementById('cm-note').value),lat,lng,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+  try{await db.collection('cisterns').add(data);toast('Cisterna guardada ✓');closeModal('cistern-modal');}
+  catch(e){toast('Error: '+e.message,true);}
+}
+async function deleteCistern(id,name){
+  if(!confirm(`¿Eliminar cisterna de "${name}"?`)) return;
+  try{await db.collection('cisterns').doc(id).delete();toast('Cisterna eliminada');}
+  catch(e){toast('Error: '+e.message,true);}
+}
+
+// ══════════════════════════════════════
+// FOTO UPLOAD
+// ══════════════════════════════════════
+function handleFileSelect(e){processPhotoFile(e.target.files[0]);}
+function handleDrop(e){e.preventDefault();document.getElementById('photo-drop').classList.remove('over');processPhotoFile(e.dataTransfer.files[0]);}
+function processPhotoFile(file){
+  if(!file)return;
+  if(!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)){toast('Formato no válido. Usa JPG, PNG o WebP.',true);return;}
+  if(file.size>5*1024*1024){toast('La imagen supera 5MB.',true);return;}
+  photoFile=file;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const prev=document.getElementById('photo-preview');
+    prev.src=e.target.result;prev.style.display='block';
+    document.getElementById('photo-remove-btn').style.display='flex';
+  };
+  reader.readAsDataURL(file);
+}
+function removePhoto(){
+  photoFile=null;
+  const prev=document.getElementById('photo-preview');
+  prev.src='';prev.style.display='none';
+  document.getElementById('photo-remove-btn').style.display='none';
+  document.getElementById('photo-file').value='';
+}
+
+// ══════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+
+document.querySelectorAll('.modal-ov').forEach(ov=>{
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('show');});
+});
+
+function toast(msg,err=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='show'+(err?' error':'');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+// Intercept nav-item clicks para inicializar mapa cuando se necesite
+document.querySelectorAll('.nav-item').forEach(item=>{
+  const orig=item.getAttribute('onclick');
+  item.addEventListener('click',()=>{
+    if(orig&&orig.includes("'map'")) setTimeout(initAdminMap,150);
+  });
+});
+</script>
+</body>
+</html>
