@@ -67,6 +67,8 @@ body{font-family:'Barlow Condensed',sans-serif;background:var(--black);color:var
 .nav-links{display:flex;align-items:center;gap:clamp(4px,1.5vw,20px);position:relative;z-index:1;}
 .nav-link{background:none;border:none;color:rgba(255,255,255,0.75);font-family:'Barlow Condensed',sans-serif;font-size:clamp(0.75rem,1.5vw,0.95rem);font-weight:600;letter-spacing:0.07em;text-transform:uppercase;cursor:pointer;padding:6px 10px;border-radius:4px;transition:all 0.2s;text-decoration:none;}
 .nav-link:hover{color:#fff;background:rgba(255,255,255,0.1);}
+.nav-emblem img.nav-logo{width:100%;height:100%;object-fit:contain;border-radius:50%;padding:3px;}
+.nav-logo-fallback{display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:1.3rem;}
 .hamburger{display:none;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;position:relative;z-index:1;}
 .mobile-menu{display:none;flex-direction:column;background:#1a0005;border-bottom:1px solid var(--border);}
 .mobile-menu.open{display:flex;}
@@ -88,11 +90,13 @@ body{font-family:'Barlow Condensed',sans-serif;background:var(--black);color:var
 .btn-primary:hover{background:var(--red-deep);transform:translateY(-1px);}
 
 /* STATS */
-.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:2.5rem;}
-.stat-box{background:rgba(13,13,13,0.8);padding:22px 20px;text-align:center;}
-.stat-val{font-family:'Bebas Neue',sans-serif;font-size:2.8rem;letter-spacing:0.04em;color:#fff;line-height:1;}
+.stats-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:2.5rem;}
+.stat-box{background:rgba(13,13,13,0.8);padding:20px 16px;text-align:center;}
+.stat-val{font-family:'Bebas Neue',sans-serif;font-size:2.6rem;letter-spacing:0.04em;color:#fff;line-height:1;}
 .stat-val.loading{color:var(--text-dim);font-size:2rem;}
-.stat-lbl{font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-dim);margin-top:4px;}
+.stat-lbl{font-family:'JetBrains Mono',monospace;font-size:0.58rem;letter-spacing:0.13em;text-transform:uppercase;color:var(--text-dim);margin-top:4px;}
+.stat-box.fijo .stat-val{color:#F5A623;}
+.stat-box.voluntario .stat-val{color:#5DCAA5;}
 
 /* MAP SECTION */
 #mapa{border-top:4px solid var(--black);}
@@ -206,7 +210,10 @@ footer{background:var(--black);border-top:1px solid var(--border);padding:40px c
 <div id="ls">
   <div class="ls-bg"></div>
   <div class="ls-inner">
-    <div class="ls-emblem"><span class="ls-code">🔥</span></div>
+    <div class="ls-emblem">
+      <img src="logo.png" alt="Bomberos RD" style="width:70%;height:70%;object-fit:contain;border-radius:50%;" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/>
+      <span class="ls-code" style="display:none">🔥</span>
+    </div>
     <p class="ls-label">Sistema Nacional · República Dominicana</p>
     <h1 class="ls-title">BOMBEROS RD<span>REP. DOM.</span></h1>
     <div class="ls-divider"></div>
@@ -219,7 +226,10 @@ footer{background:var(--black);border-top:1px solid var(--border);padding:40px c
 <!-- NAV -->
 <nav id="nav">
   <div class="nav-left">
-    <div class="nav-emblem" onclick="window.scrollTo({top:0,behavior:'smooth'})">🔥</div>
+    <div class="nav-emblem" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+      <img src="logo.png" alt="Bomberos RD" class="nav-logo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+      <span class="nav-logo-fallback">🔥</span>
+    </div>
     <div class="nav-brand">
       <span>Bomberos RD</span>
       <span>Sistema Nacional · Fase 1</span>
@@ -258,9 +268,13 @@ footer{background:var(--black);border-top:1px solid var(--border);padding:40px c
         <div class="stat-val" id="st-subestaciones">—</div>
         <div class="stat-lbl">Sub-Estaciones</div>
       </div>
-      <div class="stat-box">
-        <div class="stat-val" id="st-personal">—</div>
-        <div class="stat-lbl">Personal activo</div>
+      <div class="stat-box fijo">
+        <div class="stat-val" id="st-fijo">—</div>
+        <div class="stat-lbl">Personal fijo</div>
+      </div>
+      <div class="stat-box voluntario">
+        <div class="stat-val" id="st-voluntario">—</div>
+        <div class="stat-lbl">Voluntarios</div>
       </div>
       <div class="stat-box">
         <div class="stat-val" id="st-provincias">—</div>
@@ -274,7 +288,10 @@ footer{background:var(--black);border-top:1px solid var(--border);padding:40px c
 <div id="mapa">
   <div class="map-topbar">
     <div class="map-topbar-left">
-      <div class="map-emblem">🔥</div>
+      <div class="map-emblem">
+        <img src="logo.png" alt="Bomberos RD" style="width:80%;height:80%;object-fit:contain;border-radius:50%;" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/>
+        <span style="display:none;font-size:1.3rem">🔥</span>
+      </div>
       <div class="map-header-title">
         <span>Cuerpo de Bomberos RD</span>
         <span>Sistema Nacional de Estaciones &amp; Cobertura</span>
@@ -313,7 +330,11 @@ footer{background:var(--black);border-top:1px solid var(--border);padding:40px c
   <div class="footer-inner">
     <div class="footer-top">
       <div>
-        <div class="footer-brand"><div class="footer-emblem">🔥</div> BomberoRD</div>
+        <div class="footer-brand">
+          <div class="footer-emblem">
+            <img src="logo.png" alt="Bomberos RD" style="width:100%;height:100%;object-fit:contain;border-radius:50%;padding:2px;" onerror="this.textContent='🔥'"/>
+          </div> BomberoRD
+        </div>
         <div class="footer-desc">Sistema Nacional de Gestión del Cuerpo de Bomberos de la República Dominicana. Fase 1 en desarrollo activo.</div>
       </div>
       <div>
@@ -480,12 +501,14 @@ function removeMarker(id){
 function updateStats(){
   const stations=allStations.filter(s=>s.type==='station').length;
   const subs=allStations.filter(s=>s.type==='substation').length;
-  const personal=allStations.reduce((a,s)=>a+(s.staffFixed||0)+(s.staffVolunteer||0),0);
+  const fijo=allStations.reduce((a,s)=>a+(s.staffFixed||0),0);
+  const voluntario=allStations.reduce((a,s)=>a+(s.staffVolunteer||0),0);
   const provincias=new Set(allStations.map(s=>s.province).filter(Boolean)).size;
 
   document.getElementById('st-estaciones').textContent=stations||'0';
   document.getElementById('st-subestaciones').textContent=subs||'0';
-  document.getElementById('st-personal').textContent=personal||'0';
+  document.getElementById('st-fijo').textContent=fijo||'0';
+  document.getElementById('st-voluntario').textContent=voluntario||'0';
   document.getElementById('st-provincias').textContent=provincias||'0';
   document.getElementById('map-count').textContent=allStations.length;
 }
