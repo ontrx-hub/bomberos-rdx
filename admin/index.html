@@ -164,7 +164,10 @@ html,body{height:100%;font-family:'Barlow Condensed',sans-serif;background:var(-
 .unit-input-row input{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:0.9rem;padding:6px 8px;outline:none;text-align:center;}
 .unit-input-row input:focus{border-color:var(--gold);}
 
-/* TOAST */
+.btn-export{background:var(--green);color:#fff;border:none;padding:10px 20px;border-radius:5px;font-family:'Barlow Condensed',sans-serif;font-size:0.9rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:7px;}
+.btn-export:hover{filter:brightness(1.15);transform:translateY(-1px);}
+.btn-export.secondary{background:rgba(29,158,117,0.15);border:1px solid rgba(29,158,117,0.35);color:#5DCAA5;}
+.btn-export.secondary:hover{background:rgba(29,158,117,0.3);}
 #toast{position:fixed;bottom:20px;right:20px;z-index:9000;background:#0d2010;border:1px solid #4caf50;border-radius:8px;padding:12px 18px;font-size:0.82rem;color:#81c784;display:none;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,0.5);max-width:320px;}
 #toast.show{display:flex;}
 #toast.error{background:#200d0d;border-color:var(--red);color:#ef9a9a;}
@@ -205,7 +208,10 @@ html,body{height:100%;font-family:'Barlow Condensed',sans-serif;background:var(-
   <!-- HEADER -->
   <div id="header">
     <div class="hdr-left">
-      <div class="hdr-emblem">🔥</div>
+      <div class="hdr-emblem">
+        <img src="../logo.png" alt="Bomberos RD" style="width:100%;height:100%;object-fit:contain;border-radius:50%;padding:3px;" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/>
+        <span style="display:none;font-size:1.2rem">🔥</span>
+      </div>
       <div class="hdr-title">Panel Administrador<span>Bomberos RD · Sistema Nacional</span></div>
     </div>
     <div class="hdr-right">
@@ -244,8 +250,15 @@ html,body{height:100%;font-family:'Barlow Condensed',sans-serif;background:var(-
         <div class="cards-grid">
           <div class="kpi-card"><div class="kpi-val" id="kpi-est">0</div><div class="kpi-lbl">Estaciones principales</div></div>
           <div class="kpi-card blue"><div class="kpi-val" id="kpi-sub">0</div><div class="kpi-lbl">Sub-estaciones</div></div>
-          <div class="kpi-card green"><div class="kpi-val" id="kpi-per">0</div><div class="kpi-lbl">Personal total registrado</div></div>
+          <div class="kpi-card green"><div class="kpi-val" id="kpi-fijo">0</div><div class="kpi-lbl">Personal fijo</div></div>
+          <div class="kpi-card" style="--accent:#5DCAA5" ><div class="kpi-val" id="kpi-vol" style="color:#5DCAA5">0</div><div class="kpi-lbl">Voluntarios</div></div>
           <div class="kpi-card gold"><div class="kpi-val" id="kpi-pro">0</div><div class="kpi-lbl">Provincias con cobertura</div></div>
+        </div>
+        <!-- EXPORT BUTTONS -->
+        <div style="display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap;">
+          <button class="btn-export" onclick="exportExcel('all')">📥 Exportar todo a Excel</button>
+          <button class="btn-export secondary" onclick="exportExcel('stations')">🚒 Solo estaciones</button>
+          <button class="btn-export secondary" onclick="exportExcel('substations')">🏠 Solo sub-estaciones</button>
         </div>
         <div class="table-wrap">
           <div class="table-header">
@@ -609,11 +622,13 @@ function initApp(){
 function updateKPIs(){
   const st=allStations.filter(s=>s.type==='station');
   const sb=allStations.filter(s=>s.type==='substation');
-  const per=allStations.reduce((a,s)=>a+(s.staffFixed||0)+(s.staffVolunteer||0),0);
+  const fijo=allStations.reduce((a,s)=>a+(s.staffFixed||0),0);
+  const vol=allStations.reduce((a,s)=>a+(s.staffVolunteer||0),0);
   const prov=new Set(allStations.map(s=>s.province).filter(Boolean)).size;
   document.getElementById('kpi-est').textContent=st.length;
   document.getElementById('kpi-sub').textContent=sb.length;
-  document.getElementById('kpi-per').textContent=per;
+  document.getElementById('kpi-fijo').textContent=fijo;
+  document.getElementById('kpi-vol').textContent=vol;
   document.getElementById('kpi-pro').textContent=prov;
 }
 function updateSidebar(){
@@ -884,13 +899,86 @@ function toast(msg,err=false){
   clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3500);
 }
 
-// Intercept nav-item clicks para inicializar mapa cuando se necesite
-document.querySelectorAll('.nav-item').forEach(item=>{
-  const orig=item.getAttribute('onclick');
-  item.addEventListener('click',()=>{
-    if(orig&&orig.includes("'map'")) setTimeout(initAdminMap,150);
+// ══════════════════════════════════════
+// EXPORT EXCEL — SheetJS (browser, sin instalar nada)
+// ══════════════════════════════════════
+function exportExcel(mode='all'){
+  if(!allStations.length){toast('No hay estaciones para exportar',true);return;}
+
+  const UNIT_KEYS=['Camiones Bomba','Camión Escalera','Camión Cisterna','Rescate','Ambulancias','Salvamento','Motobombas','K9'];
+
+  function stationToRow(s){
+    const u=s.units||{};
+    const createdAt=s.createdAt?.toDate
+      ? s.createdAt.toDate().toLocaleDateString('es-DO')
+      : (s.createdAt ? new Date(s.createdAt.seconds*1000).toLocaleDateString('es-DO') : '—');
+    return {
+      'Tipo':          s.type==='substation'?'Sub-Estación':'Estación Principal',
+      'Nombre':        s.name||'',
+      'Número / ID':   s.number||'',
+      'Provincia':     s.province||'',
+      'Dirección':     s.address||'',
+      'Intendente/Jefe': s.chief||'',
+      'Teléfono':      s.phone||'',
+      'Personal Fijo': s.staffFixed||0,
+      'Voluntarios':   s.staffVolunteer||0,
+      'Total Personal':(s.staffFixed||0)+(s.staffVolunteer||0),
+      ...Object.fromEntries(UNIT_KEYS.map(k=>[k, u[k]||0])),
+      'Latitud':       s.lat||'',
+      'Longitud':      s.lng||'',
+      'Notas':         s.notes||'',
+      'Fecha creación':createdAt,
+    };
+  }
+
+  const stations   = allStations.filter(s=>s.type==='station').map(stationToRow);
+  const substations= allStations.filter(s=>s.type==='substation').map(stationToRow);
+
+  // Crear libro
+  const wb=XLSX.utils.book_new();
+
+  if(mode==='all'||mode==='stations'){
+    const ws=XLSX.utils.json_to_sheet(stations.length?stations:[{'Mensaje':'Sin estaciones registradas'}]);
+    styleSheet(ws, stations);
+    XLSX.utils.book_append_sheet(wb,ws,'Estaciones');
+  }
+  if(mode==='all'||mode==='substations'){
+    const ws=XLSX.utils.json_to_sheet(substations.length?substations:[{'Mensaje':'Sin sub-estaciones registradas'}]);
+    styleSheet(ws, substations);
+    XLSX.utils.book_append_sheet(wb,ws,'Sub-Estaciones');
+  }
+  if(mode==='all'){
+    // Hoja resumen
+    const resumen=[
+      {'Concepto':'Estaciones principales','Cantidad':stations.length},
+      {'Concepto':'Sub-Estaciones','Cantidad':substations.length},
+      {'Concepto':'Total estaciones','Cantidad':allStations.length},
+      {'Concepto':'Personal fijo total','Cantidad':allStations.reduce((a,s)=>a+(s.staffFixed||0),0)},
+      {'Concepto':'Voluntarios total','Cantidad':allStations.reduce((a,s)=>a+(s.staffVolunteer||0),0)},
+      {'Concepto':'Personal total','Cantidad':allStations.reduce((a,s)=>a+(s.staffFixed||0)+(s.staffVolunteer||0),0)},
+      {'Concepto':'Provincias con cobertura','Cantidad':new Set(allStations.map(s=>s.province).filter(Boolean)).size},
+    ];
+    const ws=XLSX.utils.json_to_sheet(resumen);
+    ws['!cols']=[{wch:30},{wch:14}];
+    XLSX.utils.book_append_sheet(wb,ws,'Resumen');
+  }
+
+  const fecha=new Date().toLocaleDateString('es-DO').replace(/\//g,'-');
+  const modeLabel=mode==='all'?'Completo':mode==='stations'?'Estaciones':'Sub-Estaciones';
+  XLSX.writeFile(wb,`BomberosRD_${modeLabel}_${fecha}.xlsx`);
+  toast(`✅ Excel exportado: BomberosRD_${modeLabel}_${fecha}.xlsx`);
+}
+
+function styleSheet(ws, rows){
+  if(!rows.length) return;
+  const cols=Object.keys(rows[0]);
+  // Ancho automático por contenido
+  ws['!cols']=cols.map(c=>{
+    const maxLen=Math.max(c.length, ...rows.map(r=>String(r[c]||'').length));
+    return {wch:Math.min(Math.max(maxLen+2,10),40)};
   });
-});
+}
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </body>
 </html>
